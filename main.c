@@ -13,7 +13,11 @@ int padSize;
 uint8_t* PAD;
 FILE* m; //input meassge file
 
-
+uint8_t ROT_CONST[5][5] = { {25, 39, 3,  10, 43},
+							{55, 20, 36, 44,  6},
+					  		{28, 27,  0,  1, 62},
+					  		{56, 14, 18,  2, 61},
+					  		{21,  8, 41, 45, 15}};
 
 void loadFile(char* filename){
 	m = fopen(filename, "rb");
@@ -103,6 +107,43 @@ void theta(uint8_t*  state){
 	}
 }
 
+void pi(uint8_t* state){
+	uint8_t* temp_B = malloc(25*W);
+	for(int i = 0; i < 25*W; i++){
+		temp_B[i] = state[i];
+	}
+	
+	for(int z = 0; z < W; z++){
+		for(int x = 0; x < 5; x++){
+			for(int y = 0; y < 5; y++){
+				int new_x = y % 5;
+				int new_y = (2*x + 3*y) % 5;
+				
+				state[new_x*W*5 + new_y*W + z] = temp_B[x*W*5 + y*W + z];
+			}
+		}
+	}
+
+	free(temp_B);
+}
+
+void rho(uint8_t* state){
+	uint8_t* temp_B = malloc(25*W);
+	for(int i = 0; i < 25*W; i++){
+		temp_B[i] = state[i];
+	}
+	
+	int x = 1;
+	int y = 0;
+	for(int t = 0; t < 24; t++){
+		int offset = ((t+1) * (t+2)) / 2;
+		// state(x,y) = ROT(temp_B, offset)
+		x = y;
+		y = 2*x + 3*y;
+	}
+	
+	free(temp_B);
+}
 
 void cleanup(){
 	free(PAD);
@@ -142,7 +183,7 @@ int main(int argc, char** argv){
 
 	setupMessageAndPad(message);
 	theta(state);
-	
+	pi(state);
 
 
 	cleanup();
