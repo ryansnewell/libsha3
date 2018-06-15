@@ -45,7 +45,7 @@ void setPAD(){
 	}
 
 	//TODO Rework this so instead of this dumb block, just set padding memory to all 0's
-	//		Then XOR first byte with it's needed value and last byte with 1.
+	//		Then XOR first byte with its needed value and last byte with 1.
 	//		That way even if it's only one byte it still gets the needed values.
 	if(padSize == 1){
 		PAD[0] = 0b11101001;
@@ -138,6 +138,11 @@ void rho(uint8_t* state){
 	for(int t = 0; t < 24; t++){
 		int offset = ((t+1) * (t+2)) / 2;
 		// state(x,y) = ROT(temp_B, offset)
+		
+		for(int z = 0; z < W; z++){
+			state[5*x*W + 5*y + z] = temp_B[5*x*W + 5*y + ((z + offset) % W)];
+		}
+
 		x = y;
 		y = 2*x + 3*y;
 	}
