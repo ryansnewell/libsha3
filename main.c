@@ -8,16 +8,38 @@ int R; //bit-rate, length of one message block. r = 1344 or r = 1088
 int C; //capacity. c = 256 or c = 512
 int OUTPUT_LENGTH; //decides length of output and if using SHA-2 replacement mode or variable output mode
 int W; //Widht of the state array. Dimensions are 5x5xW;
+int NUM_ROUNDS;
 int mSize;
 int padSize;
 uint8_t* PAD;
 FILE* m; //input meassge file
 
-uint8_t ROT_CONST[5][5] = { {25, 39, 3,  10, 43},
-							{55, 20, 36, 44,  6},
-					  		{28, 27,  0,  1, 62},
-					  		{56, 14, 18,  2, 61},
-					  		{21,  8, 41, 45, 15}};
+unsigned long long int round_constant[24] = { 0x0000000000000001,
+											  0x0000000000008082,
+											  0x800000000000808A,
+											  0x8000000080008000,
+											  0x000000000000808B,
+											  0x0000000080000001,
+											  0x8000000080008081,
+											  0x8000000000008009,
+											  0x000000000000008A,
+											  0x0000000000000088,
+											  0x0000000080008009,
+											  0x000000008000000A,
+											  0x000000008000808B,
+											  0x800000000000008B,
+											  0x8000000000008089,
+											  0x8000000000008003,
+											  0x8000000000008002,
+											  0x8000000000000080,
+											  0x000000000000800A,
+											  0x800000008000000A,
+											  0x8000000080008081,
+											  0x8000000000008080,
+											  0x0000000080000001,
+											  0x8000000080008008};
+
+
 
 void loadFile(char* filename){
 	m = fopen(filename, "rb");
@@ -150,6 +172,32 @@ void rho(uint8_t* state){
 	free(temp_B);
 }
 
+void chi(uint8_t* state){
+	uint8_t* temp_B = malloc(25*W);
+	for(int i = 0; i < 25*W; i++){
+		temp_B[i] = state[i];
+	}
+
+	for(int x = 0; x < 5; x++){
+		for(int y = 0; y < 5; y++){
+			for(int z = 0; z < W; z++){
+				state[5*x*W + 5*y + z] = temp_B[5*x*W + 5*y + z] ^ ( ~(temp_B[5*W*((x+1)%5) + 5*y + z]) & temp_B[5*W*((x+2)%5) + 5*y + z] );
+			}
+		}
+	}
+
+	free(temp_B);
+}
+
+void iota(uint8_t* state){
+	printf("\tsizeof(uint8_t)=%lu\n", sizeof(uint8_t));
+	for(int z = W - 1; z >= 0; z--){
+		unsigned long long int rconst = (round_constant[NUM_ROUNDS - 1] >> ((W-z) * sizeof(uint8_t)));
+		printf("\tz: %i\tpre-Xor constant: %llu\n", z, rconst);
+		state[z] = state[z] ^ rconst;
+	}
+}
+
 void cleanup(){
 	free(PAD);
 	
@@ -170,12 +218,13 @@ int main(int argc, char** argv){
 		printf("arg[2] = %s\n", argv[2]);
 	}
 
-	B =  800;
+	B =  1600;
 	C =  256; //TODO change to non static
 	R = B - C;
 	W = B / 25;
+	NUM_ROUNDS = 24; //TODO change to non static???
 	OUTPUT_LENGTH = atoi(argv[2]);
-	
+
 	loadFile(argv[1]);
 	setPAD();
 	
@@ -187,10 +236,25 @@ int main(int argc, char** argv){
 	}
 
 	setupMessageAndPad(message);
+	
+	printf("Setup complete. Starting theta step...\n");
 	theta(state);
+
+	printf("Theta step complete. Starting rho step...\n");
+	rho(state);
+	
+	printf("Rho step complete. Starting pi step...\n");
 	pi(state);
 
+	printf("Pi step complete. Starting chi step...\n");
+	chi(state);
 
+	printf("Chi step complete. Starting iota step...\n");
+	iota(state);
+
+	printf("Iota step complete. Starting clean up...\n");
 	cleanup();
+
+	printf("Completed successfully. Exiting\n");
 	return 0;
 }
